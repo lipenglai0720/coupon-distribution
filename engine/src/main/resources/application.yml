@@ -1,0 +1,55 @@
+spring:
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  application:
+    name: ${SERVICE_NAME:quanshu}
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_ENABLED:false}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        ip: 127.0.0.1
+  task:
+    scheduling:
+      pool:
+        size: 4
+  config:
+    import: optional:file:../application-local.properties,optional:file:./application-local.properties
+  datasource:
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/quanshu?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC}
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:}
+  servlet:
+    multipart:
+      max-file-size: 32MB
+      max-request-size: 34MB
+  rabbitmq:
+    host: ${RABBIT_HOST:127.0.0.1}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USER:guest}
+    password: ${RABBIT_PASSWORD:guest}
+    virtual-host: ${RABBIT_VHOST:/}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+server:
+  port: ${APP_PORT:8080}
+  address: ${APP_BIND:127.0.0.1}
+quanshu:
+  mq-enabled: ${MQ_ENABLED:false}
+  redis-enabled: ${REDIS_ENABLED:false}
+  jobs-enabled: ${JOBS_ENABLED:true}
+  role: ${SERVICE_ROLE:monolith}
+  accounts-file: ${ACCOUNTS_FILE:}
+  demo-mode: ${DEMO_MODE:false}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    redis:
+      enabled: ${REDIS_ENABLED:false}
+    rabbit:
+      enabled: ${MQ_ENABLED:false}

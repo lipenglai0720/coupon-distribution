@@ -1,0 +1,14 @@
+[
+  {
+    "username": "example-merchant",
+    "role": "MERCHANT",
+    "subjectId": 1,
+    "password": "REPLACE_WITH_UNIQUE_MERCHANT_PASSWORD"
+  },
+  {
+    "username": "example-customer",
+    "role": "CUSTOMER",
+    "subjectId": 1001,
+    "password": "REPLACE_WITH_UNIQUE_CUSTOMER_PASSWORD"
+  }
+]

@@ -1,0 +1,56 @@
+{
+  "result": "PASS",
+  "environment": "Nacos 3.0.3 + Gateway + merchant/coupon/worker processes; MySQL physical hash tables; XXL-Job 3.1.1; native Ubuntu VM",
+  "checks": {
+    "gatewayRoutes": true,
+    "physicalUserAndMerchantShards": true,
+    "rabbitTtlDueEventConsumed": true,
+    "xxlSuccessfulCallbacks": true
+  },
+  "registrations": {
+    "merchant-service": [
+      {
+        "ip": "127.0.0.1",
+        "port": 8083,
+        "healthy": true
+      }
+    ],
+    "coupon-service": [
+      {
+        "ip": "127.0.0.1",
+        "port": 8082,
+        "healthy": true
+      }
+    ],
+    "distribution-service": [
+      {
+        "ip": "127.0.0.1",
+        "port": 8084,
+        "healthy": true
+      }
+    ],
+    "quanshu-gateway": [
+      {
+        "ip": "127.0.0.1",
+        "port": 8080,
+        "healthy": true
+      }
+    ]
+  },
+  "scheduler": [
+    [
+      "couponExpiry",
+      "91"
+    ],
+    [
+      "claimRepair",
+      "182"
+    ],
+    [
+      "fileImport",
+      "452"
+    ]
+  ],
+  "templateId": 7,
+  "storageMode": "USER_TEMPLATE_HASH_4"
+}

@@ -1,0 +1,51 @@
+name: Build and integration tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TEST_DB_URL: jdbc:mysql://127.0.0.1:3306/quanshu_test?serverTimezone=UTC
+      TEST_REDIS_PORT: '6379'
+      SPRING_FLYWAY_CLEAN_DISABLED: 'true'
+      DB_USER: coupon_ci
+      DB_PASSWORD: coupon_ci_ephemeral
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Start native test services
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends redis-server
+          sudo systemctl start mysql redis-server
+          if sudo mysql -e 'SELECT 1' >/dev/null 2>&1; then
+            mysql_root=(sudo mysql)
+          else
+            mysql_root=(mysql --user=root --password=root)
+          fi
+          "${mysql_root[@]}" <<'SQL'
+          CREATE DATABASE quanshu_test CHARACTER SET utf8mb4;
+          CREATE USER 'coupon_ci'@'localhost' IDENTIFIED BY 'coupon_ci_ephemeral';
+          GRANT ALL PRIVILEGES ON quanshu_test.* TO 'coupon_ci'@'localhost';
+          SQL
+          redis-cli ping
+      - name: Verify
+        run: mvn --batch-mode --no-transfer-progress verify
+      - name: Preserve test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: '*/target/surefire-reports/*.txt'

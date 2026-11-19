@@ -1,0 +1,16 @@
+{
+  "result": "PASS",
+  "pageErrors": [],
+  "mobileOverflow": false,
+  "flows": [
+    "create template",
+    "async claim",
+    "lock",
+    "redeem",
+    "refund",
+    "CSV batch completion and deduplication",
+    "end activity"
+  ],
+  "templateId": 12,
+  "batchTask": "75ee72e9-e07d-4384-a26a-89df57f28c23"
+}

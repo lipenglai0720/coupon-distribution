@@ -1,0 +1,11 @@
+{
+  "environment": "native Ubuntu VM",
+  "checks": {
+    "pendingDuringBrokerOutage": true,
+    "completedAfterBrokerRestart": true,
+    "fiveDuplicateDeliveriesDidNotDuplicateCoupon": true,
+    "poisonMessageDeadLettered": true,
+    "unroutableMessageDetectedByBroker": true
+  },
+  "result": "PASS"
+}

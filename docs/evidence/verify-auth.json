@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-19",
+  "maven": "IDEA bundled Maven 3.9.16",
+  "command": "verify",
+  "tests": 32,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "database": "MySQL 8.4.13 test schema",
+  "redis": "Redis 8.0.5, db 15",
+  "csvRows": 1000000,
+  "csvParserHeapMiB": 128,
+  "csvCheckpointVerified": true,
+  "csvOverflowRejected": true
+}

@@ -1,0 +1,11 @@
+{
+  "profile": "discovery,sharding / Spring sharded",
+  "failures": 0,
+  "redis": "Redis8.0.5 database15",
+  "date": "2026-11-16",
+  "tests": 29,
+  "skipped": 0,
+  "database": "MySQL8.4.13 quanshu_test",
+  "command": "IDEA bundled Maven verify",
+  "errors": 0
+}

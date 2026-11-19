@@ -1,0 +1,13 @@
+{
+  "templateId": 1,
+  "taskId": "90d11b97-fd04-4a67-9ccc-1bcf7596a825",
+  "users": 100,
+  "durationMs": 16518,
+  "counts": {
+    "SUCCESS": 100,
+    "PENDING": 0,
+    "FAILED": 0
+  },
+  "result": "PASS",
+  "environment": "Java on Windows, native MySQL/RabbitMQ in Ubuntu VM via SSH tunnel"
+}

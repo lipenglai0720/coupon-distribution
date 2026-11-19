@@ -1,0 +1,15 @@
+{
+  "result": "PASS",
+  "authenticated": true,
+  "mobileViewport": 390,
+  "templateId": 17,
+  "taskId": "02c5ffcc-8d7e-4eb9-94b6-b28237451741",
+  "checks": [
+    "login and role UI",
+    "authenticated async claim",
+    "customer locks coupon",
+    "merchant looks up, redeems and refunds",
+    "CSV distribution deduplicates",
+    "logout"
+  ]
+}

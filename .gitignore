@@ -1,0 +1,10 @@
+target/
+/.idea/
+*.iml
+.local/
+/logs/
+data/
+/application-local.properties
+*.env
+/accounts.json
+http-client.private.env.json

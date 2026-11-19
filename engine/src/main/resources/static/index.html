@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>优惠券分发与核销系统</title>
+  <link rel="stylesheet" href="/app.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <strong>优惠券分发与核销系统</strong>
+    <div class="actions" id="sessionBar" hidden>
+      <span id="actor"></span><button id="refresh" class="secondary">刷新</button>
+      <button id="logout" class="secondary">退出</button>
+    </div>
+  </header>
+  <main>
+    <form id="login" class="panel login">
+      <h1>登录工作台</h1>
+      <label>账号<input name="username" autocomplete="username" required maxlength="64"></label>
+      <label>密码<input name="password" type="password" autocomplete="current-password" required maxlength="72"></label>
+      <button>登录</button>
+      <p id="loginError" role="status"></p>
+    </form>
+    <div id="workspace" hidden>
+      <div id="demoIdentity" class="notice" hidden>
+        <label>本地演示用户<input id="user" type="number" value="1" min="1"></label>
+      </div>
+      <nav aria-label="工作台">
+        <button data-tab="templates">优惠券</button>
+        <button data-tab="wallet" data-customer>我的券</button>
+        <button data-tab="batch" data-merchant>批量发券</button>
+        <button data-tab="redemption" data-merchant>核销与退款</button>
+        <button data-tab="system">运行状态</button>
+      </nav>
+      <section id="templates">
+        <div class="layout">
+          <div><h1>优惠券 <small id="templateCount"></small></h1><div class="cards" id="templateList"></div></div>
+          <form id="createForm" class="panel" data-merchant>
+            <h2>创建模板</h2>
+            <label>模板名称<input name="name" required maxlength="100"></label>
+            <label>商家编号<input name="merchantId" type="number" value="1" min="1" required></label>
+            <label>发行数量<input name="stock" type="number" value="100" min="1" max="10000000" required></label>
+            <div class="grid2">
+              <label>使用门槛（元）<input name="threshold" type="number" value="100" min="0" step="0.01" required></label>
+              <label>减免金额（元）<input name="discount" type="number" value="20" min="0.01" step="0.01" required></label>
+            </div>
+            <label>有效天数<input name="days" type="number" value="7" min="1" max="365" required></label>
+            <button>创建并发布</button>
+          </form>
+        </div>
+      </section>
+      <section id="wallet" hidden>
+        <h1>我的券 <small id="walletCount"></small></h1>
+        <div id="walletList" class="cards"></div>
+        <div class="panel spaced"><h2>领取记录</h2><pre id="claimHistory"></pre></div>
+      </section>
+      <section id="batch" hidden>
+        <h1>批量发券</h1>
+        <div class="layout">
+          <form id="batchForm" class="panel">
+            <h2>新建任务</h2>
+            <label>模板编号<input name="templateId" type="number" min="1" required></label>
+            <label>用户编号（以逗号或换行分隔）<textarea name="users"></textarea></label>
+            <label>或上传第一列为用户编号的 CSV / XLSX 文件<input id="csvFile" type="file" accept=".csv,.xlsx"></label>
+            <button>提交分发任务</button>
+          </form>
+          <form id="queryTaskForm" class="panel">
+            <h2>任务详情</h2>
+            <label>任务编号<input id="taskId" required maxlength="36"></label>
+            <div class="actions"><button id="queryTask">查询进度</button><button id="retryTask" type="button" hidden>重试解析</button></div>
+            <pre id="taskResult"></pre>
+          </form>
+        </div>
+        <div class="panel spaced">
+          <h2>最近分发任务</h2>
+          <ul id="recentTasks" class="task-list"></ul>
+        </div>
+      </section>
+      <section id="redemption" hidden>
+        <h1>核销与退款</h1>
+        <form id="redemptionForm" class="panel">
+          <label>订单号<input name="order" required maxlength="100"></label>
+          <div class="actions">
+            <button name="action" value="query">查询订单</button>
+            <button name="action" value="redeem" class="secondary">确认核销</button>
+            <button name="action" value="refund" class="secondary">确认退券</button>
+          </div>
+          <pre id="orderResult"></pre>
+        </form>
+      </section>
+      <section id="system" hidden class="panel"><h1>运行状态</h1><pre id="statusJson"></pre></section>
+    </div>
+  </main>
+  <div id="toast" role="status" hidden></div>
+</body>
+</html>

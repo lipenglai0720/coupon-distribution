@@ -1,0 +1,13 @@
+{
+  "date": "2026-11-16",
+  "result": "PASS",
+  "templateCount": 14,
+  "inventoryDeducted": 20311,
+  "physicalCoupons": 20311,
+  "mismatchedTemplates": 0,
+  "negativeStock": 0,
+  "outboxStates": {
+    "CONSUMED": 40637,
+    "SENT": 10117
+  }
+}

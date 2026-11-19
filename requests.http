@@ -1,0 +1,88 @@
+@base = http://localhost:8080
+@merchantId = 1
+@templateId = 1
+@couponId = replace-with-coupon-id
+@orderId = replace-with-order-id
+@taskId = replace-with-task-id
+
+### 服务状态
+GET {{base}}/api/status
+
+### 商家登录，账号和密码写入 IDEA 私有环境
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"username":"{{merchantUsername}}","password":"{{merchantPassword}}"}
+
+> {% client.global.set("merchantToken", response.body.token); %}
+
+### 用户登录
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"username":"{{customerUsername}}","password":"{{customerPassword}}"}
+
+> {% client.global.set("customerToken", response.body.token); %}
+
+### 商家建立满减券，更新有效期毫秒时间
+POST {{base}}/api/templates
+Authorization: Bearer {{merchantToken}}
+Content-Type: application/json
+
+{"merchantId":{{merchantId}},"name":"新客满100减20","stock":100,"thresholdCents":10000,"discountCents":2000,"validFrom":1794787200000,"validTo":1826323200000}
+
+### 用户领取，异步接口返回 202 和请求编号
+POST {{base}}/api/claims/async
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{"templateId":{{templateId}},"requestId":"{{$uuid}}"}
+
+> {% client.global.set("claimRequest", response.body.request_id); %}
+
+### 查询领取结果
+GET {{base}}/api/claims/{{claimRequest}}
+Authorization: Bearer {{customerToken}}
+
+### 我的优惠券
+GET {{base}}/api/wallet
+Authorization: Bearer {{customerToken}}
+
+### 查看结算可用券
+GET {{base}}/api/settlement?merchantId={{merchantId}}&amountCents=10000
+Authorization: Bearer {{customerToken}}
+
+### 用户锁券
+POST {{base}}/api/coupons/{{couponId}}/lock
+Authorization: Bearer {{customerToken}}
+Content-Type: application/json
+
+{"orderId":"{{orderId}}","merchantId":{{merchantId}},"amountCents":10000}
+
+### 商家查询本店订单用券状态
+GET {{base}}/api/redemptions/{{orderId}}
+Authorization: Bearer {{merchantToken}}
+
+### 商家确认核销
+POST {{base}}/api/redemptions/{{orderId}}/redeem
+Authorization: Bearer {{merchantToken}}
+
+### 商家确认退券
+POST {{base}}/api/redemptions/{{orderId}}/refund
+Authorization: Bearer {{merchantToken}}
+
+### 商家近期任务
+GET {{base}}/api/tasks
+Authorization: Bearer {{merchantToken}}
+
+### 商家查询或恢复任务
+GET {{base}}/api/tasks/{{taskId}}
+Authorization: Bearer {{merchantToken}}
+
+###
+POST {{base}}/api/tasks/{{taskId}}/retry
+Authorization: Bearer {{merchantToken}}
+
+### 退出当前用户会话
+POST {{base}}/api/auth/logout
+Authorization: Bearer {{customerToken}}

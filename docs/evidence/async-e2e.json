@@ -1,0 +1,13 @@
+{
+  "users": 1000,
+  "stock": 100,
+  "successes": 100,
+  "rejected": 900,
+  "durationMs": 1704,
+  "templateId": 3,
+  "result": "PASS",
+  "sampleRequest": "e2e-1794814792779-0",
+  "sampleUser": 500001,
+  "sampleCoupon": "b2278f44-7634-4530-8b93-ff293cc310d3",
+  "environment": "Application, MySQL, Redis and RabbitMQ run natively on the same Ubuntu VM; driver on Windows via SSH tunnel"
+}
