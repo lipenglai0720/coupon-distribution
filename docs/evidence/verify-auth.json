@@ -9,7 +9,6 @@
   "database": "MySQL 8.4.13 test schema",
   "redis": "Redis 8.0.5, db 15",
   "csvRows": 1000000,
-  "csvParserHeapMiB": 128,
   "csvCheckpointVerified": true,
   "csvOverflowRejected": true
 }

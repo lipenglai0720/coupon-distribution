@@ -14,12 +14,12 @@ async function api(path,data){const r=await fetch('http://127.0.0.1:8080/api'+pa
  fs.writeFileSync('.local/recipients-5000.xlsx',xlsx);const time=Date.now();
  const t=await api('/templates',{merchantId:1,name:'Excel流式分发5000人验收',stock:count,thresholdCents:10000,discountCents:2000,validFrom:time-1000,validTo:time+86400000});
  const body=new FormData();body.append('templateId',String(t.id));body.append('file',new Blob([xlsx]),'recipients-5000.xlsx');
- const response=await fetch('http://127.0.0.1:8080/api/tasks/file',{method:'POST',body});if(!response.ok)throw Error(await response.text());const task=await response.json();const acceptedMs=Date.now()-time;
+ const response=await fetch('http://127.0.0.1:8080/api/tasks/file',{method:'POST',body});if(!response.ok)throw Error(await response.text());const task=await response.json();
  for(let i=0;i<120;i++){
   const status=await api('/tasks/'+task.id);if(i%5===0)console.log(JSON.stringify({parseState:status.parse_state,...status.counts}));
   if(status.status!=='PROCESSING'){
     if(status.status!=='COMPLETED'||status.counts.SUCCESS!==count||status.importErrors!==0)throw Error(JSON.stringify(status));
-    const report={users:count,templateId:t.id,taskId:task.id,bytes:xlsx.length,acceptedMs,durationMs:Date.now()-time,checkpoint:status.checkpoint,counts:status.counts,result:'PASS'};
+    const report={users:count,templateId:t.id,taskId:task.id,bytes:xlsx.length,checkpoint:status.checkpoint,counts:status.counts,result:'PASS'};
     fs.writeFileSync('.local/file-e2e.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));return;
   }
   await new Promise(r=>setTimeout(r,1000));

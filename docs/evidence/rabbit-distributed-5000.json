@@ -2,7 +2,6 @@
   "templateId": 10,
   "taskId": "9a68b9f5-2d04-4d90-ae02-9be6f62419ae",
   "users": 5000,
-  "durationMs": 37820,
   "counts": {
     "PENDING": 0,
     "SUCCESS": 5000,

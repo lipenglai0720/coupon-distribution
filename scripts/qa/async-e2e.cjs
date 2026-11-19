@@ -20,6 +20,6 @@ async function parallel(items,fn){let cursor=0;const out=new Array(items.length)
  if(duplicate.coupon_id!==first.coupon_id)throw Error('Duplicate changed coupon');
  const template=(await api('/templates')).find(x=>x.id===t.id);
  if(template.remaining_stock!==0)throw Error('Inventory mismatch');
- const report={users,stock,successes:successes.length,rejected:users-stock,durationMs:Date.now()-time,templateId:t.id,result:'PASS',sampleRequest:first.request_id,sampleUser:first.user_id,sampleCoupon:first.coupon_id,environment:'Application, MySQL, Redis and RabbitMQ run natively on the same Ubuntu VM; driver on Windows via SSH tunnel'};
+ const report={users,stock,successes:successes.length,rejected:users-stock,templateId:t.id,result:'PASS',sampleRequest:first.request_id,sampleUser:first.user_id,sampleCoupon:first.coupon_id,environment:'Application, MySQL, Redis and RabbitMQ run natively on the same Ubuntu VM; driver on Windows via SSH tunnel'};
  fs.writeFileSync('.local/async-e2e.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 })().catch(e=>{console.error(e);process.exit(1)});

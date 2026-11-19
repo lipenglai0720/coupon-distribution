@@ -45,7 +45,7 @@ VM脚本执行顺序：start-user-services.sh → start-nacos.sh → start-xxl-a
 
 在运行目录的 `config/accounts.json` 放置账号清单，格式参照 [示例账号文件](../examples/accounts.example.json)。文件权限应设为 600。商家进程启动时将新账号写入数据库，已有账号不覆盖。日常运行可以将已使用的账号文件移出运行目录。
 
-引擎默认要求短期 Bearer 会话，网关转发 Authorization，所有业务进程查询同一会话库。开启 `DEMO_MODE=true` 可使用旧的本地合成负载脚本。只在隔离的测试实例开启演示模式。通过公网反向代理运行时应先配置 HTTPS，并为登录接口设置请求频率限制。
+引擎默认要求短期 Bearer 会话，网关转发 Authorization，所有业务进程查询同一会话库。只在隔离的测试实例开启 `DEMO_MODE=true`。通过公网反向代理运行时应先配置 HTTPS，并为登录接口设置请求频率限制。
 
 Windows 启动脚本支持 `-VmHost`、`-VmUser` 和 `-IdentityFile`，也可分别配置 `COUPON_VM_HOST`、`COUPON_VM_USER` 和 `COUPON_VM_IDENTITY`。原生 VM 验收脚本通过 `COUPON_VM_SSH_TARGET` 指定 SSH 目标。
 
@@ -59,6 +59,6 @@ XXL调度：couponExpiry每10秒、claimRepair每5秒、fileImport每2秒。Outb
 
 ## 证据与资源
 
-完整集成测试报告在engine/target/surefire-reports与gateway/target/surefire-reports；最新构建日志 `.local/verify-release.log`。实测摘要见docs/evidence；原始JMeter JTL与HTML报告在.local。
+完整集成测试报告在 engine/target/surefire-reports 和 gateway/target/surefire-reports。验收摘要见 docs/evidence。
 
-当前RAM不足4GiB，多Java进程启动及压测会使用交换空间。性能需按当前部署重新测量；旧单体、热缓存结果不代表分片微服务性能。原生包、JAR、日志和备份也占用有限磁盘空间，长期运行需安排清理与轮转。
+原生包、JAR、日志和备份会占用磁盘空间。长期运行时请为日志和备份配置保留期限。

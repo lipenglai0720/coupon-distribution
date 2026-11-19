@@ -40,7 +40,7 @@
 
 - `mvn verify` 或 IDEA 的 Maven **Lifecycle → verify** 执行真实 MySQL、Redis 和网关测试。设置 `TEST_DB_URL=jdbc:mysql://127.0.0.1:3306/quanshu_test?serverTimezone=UTC` 和 `TEST_REDIS_PORT=6379`，需要时替换实际端口。测试会清理 `quanshu_test` 和 Redis 15，公共 CI 使用独立服务。
 - 将 [HTTP Client 私有环境示例](examples/http-client.private.env.example.json) 复制为项目根目录的 `http-client.private.env.json` 后填写账号，再在 IDEA 中执行 [requests.http](requests.http)。[examples/recipients.csv](examples/recipients.csv) 可用于试跑批量发券。
-- [验收记录](docs/progress.md) 包含并发库存对账、Broker 中断恢复、真实 XLSX 5000 人批次、百万行 CSV 解析和 JMeter 压测口径。
+- [验收记录](docs/progress.md) 涵盖库存对账、Broker 中断恢复、XLSX 批量发券和 CSV 解析边界。
 - [简历项目说明](docs/resume-project.md) 说明可引用的实现、数字和场景限制。
 
 当前部署使用同库分表与单节点中间件。商家核销流程由应用账号确认，外部支付回调与高可用部署仍待集成。CSV 流式解析已单独验证百万行，完整批量发券已验收 5000 人。

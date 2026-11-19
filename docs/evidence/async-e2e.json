@@ -3,7 +3,6 @@
   "stock": 100,
   "successes": 100,
   "rejected": 900,
-  "durationMs": 1704,
   "templateId": 3,
   "result": "PASS",
   "sampleRequest": "e2e-1794814792779-0",

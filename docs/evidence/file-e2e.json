@@ -3,8 +3,6 @@
   "templateId": 5,
   "taskId": "23ce4d2e-7d30-4958-93bf-f0724be2abd9",
   "bytes": 364774,
-  "acceptedMs": 116,
-  "durationMs": 17396,
   "checkpoint": 5001,
   "counts": {
     "PENDING": 0,
