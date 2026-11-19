@@ -5,6 +5,8 @@ import java.nio.file.*;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,16 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class FileDistribution {
+  public static final int DELIVERY_BATCH_SIZE = 100;
+  private static final DefaultRedisScript<List> STAGE =
+      new DefaultRedisScript<>(
+          """
+          redis.call('SADD',KEYS[1],unpack(ARGV))
+          redis.call('EXPIRE',KEYS[1],300)
+          return redis.call('SMEMBERS',KEYS[1])
+          """,
+          List.class);
+
   private static class LeaseLost extends RuntimeException {
     LeaseLost() {
       super("任务租约已失效");
@@ -24,16 +36,22 @@ public class FileDistribution {
   private final ObjectMapper json;
   private final TransactionTemplate tx;
   private final Path storage;
+  private final StringRedisTemplate redis;
+  private final boolean redisEnabled;
 
   public FileDistribution(
       JdbcTemplate db,
       ObjectMapper json,
       PlatformTransactionManager transactions,
+      StringRedisTemplate redis,
+      @Value("${quanshu.redis-enabled}") boolean redisEnabled,
       @Value("${quanshu.storage-dir:./data/uploads}") String storage) {
     this.db = db;
     this.json = json;
     this.tx = new TransactionTemplate(transactions);
     this.storage = Path.of(storage).toAbsolutePath().normalize();
+    this.redis = redis;
+    this.redisEnabled = redisEnabled;
   }
 
   public String upload(long template, MultipartFile file) throws java.io.IOException {
@@ -102,52 +120,81 @@ public class FileDistribution {
 
   public void flush(Map<String, Object> task, List<RecipientFileReader.Row> rows) {
     if (rows.isEmpty()) return;
-    tx.executeWithoutResult(
-        status -> {
-          fence(task);
-          for (var row : rows) {
-            if (row.error() != null)
-              db.update(
-                  "INSERT IGNORE INTO distribution_import_error(task_id,source_row,error)"
-                      + " VALUES(?,?,?)",
-                  task.get("id"),
-                  row.number(),
-                  row.error());
-            if (row.user() != null) {
-              int inserted =
-                  db.update(
+    String stageKey = "quanshu:distribution:staging:" + task.get("id") + ":" + UUID.randomUUID();
+    var users = rows.stream().map(RecipientFileReader.Row::user).filter(Objects::nonNull).toList();
+    try {
+      var staged = stageUsers(stageKey, users);
+      tx.executeWithoutResult(
+          status -> {
+            fence(task);
+            for (var row : rows) {
+              if (row.error() != null)
+                db.update(
+                    "INSERT IGNORE INTO distribution_import_error(task_id,source_row,error)"
+                        + " VALUES(?,?,?)",
+                    task.get("id"),
+                    row.number(),
+                    row.error());
+            }
+            var accepted = new ArrayList<Long>();
+            for (long user : staged) {
+              if (db.update(
                       "INSERT IGNORE INTO distribution_recipient(task_id,user_id) VALUES(?,?)",
                       task.get("id"),
-                      row.user());
-              if (inserted == 1) {
-                try {
-                  long time = System.currentTimeMillis();
-                  db.update(
-                      "INSERT INTO outbox(id,kind,payload,next_attempt,created_at)"
-                          + " VALUES(?,'BATCH_CLAIM',?,?,?)",
-                      UUID.randomUUID().toString(),
-                      json.writeValueAsString(
-                          Map.of(
-                              "taskId",
-                              task.get("id"),
-                              "templateId",
-                              task.get("template_id"),
-                              "userId",
-                              row.user())),
-                      time,
-                      time);
-                } catch (java.io.IOException e) {
-                  throw new IllegalStateException(e);
-                }
-              }
+                      user)
+                  == 1) accepted.add(user);
             }
-          }
-          db.update(
-              "UPDATE distribution_task SET checkpoint=?,lease_until=? WHERE id=?",
-              rows.get(rows.size() - 1).number(),
-              System.currentTimeMillis() + 60000,
-              task.get("id"));
-        });
+            for (int start = 0; start < accepted.size(); start += DELIVERY_BATCH_SIZE) {
+              emitBatch(
+                  task,
+                  accepted.subList(start, Math.min(start + DELIVERY_BATCH_SIZE, accepted.size())));
+            }
+            db.update(
+                "UPDATE distribution_task SET checkpoint=?,lease_until=? WHERE id=?",
+                rows.get(rows.size() - 1).number(),
+                System.currentTimeMillis() + 60000,
+                task.get("id"));
+          });
+    } finally {
+      if (redisEnabled && !users.isEmpty()) {
+        try {
+          redis.delete(stageKey);
+        } catch (org.springframework.dao.DataAccessException ignored) {
+          // The staging set has a TTL even if cleanup fails after commit.
+        }
+      }
+    }
+  }
+
+  private List<Long> stageUsers(String key, List<Long> users) {
+    if (users.isEmpty()) return List.of();
+    if (!redisEnabled) return users.stream().distinct().sorted().toList();
+    List<?> members =
+        redis.execute(STAGE, List.of(key), users.stream().map(String::valueOf).toArray());
+    if (members == null || members.isEmpty()) throw new IllegalStateException("名单暂存未返回数据");
+    return members.stream().map(value -> Long.parseLong(value.toString())).sorted().toList();
+  }
+
+  private void emitBatch(Map<String, Object> task, List<Long> users) {
+    try {
+      long time = System.currentTimeMillis();
+      db.update(
+          "INSERT INTO outbox(id,kind,payload,next_attempt,created_at)"
+              + " VALUES(?,'BATCH_CLAIM_GROUP',?,?,?)",
+          UUID.randomUUID().toString(),
+          json.writeValueAsString(
+              Map.of(
+                  "taskId",
+                  task.get("id"),
+                  "templateId",
+                  task.get("template_id"),
+                  "userIds",
+                  users)),
+          time,
+          time);
+    } catch (java.io.IOException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   public void process(Map<String, Object> task) {

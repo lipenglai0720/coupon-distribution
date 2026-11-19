@@ -135,6 +135,14 @@ public class ReadCaches {
   }
 
   public void templateChanged(long template) {
+    templateChanged(template, false);
+  }
+
+  public void templateCreated(long template) {
+    templateChanged(template, true);
+  }
+
+  private void templateChanged(long template, boolean prewarm) {
     if (locks == null) return;
     TransactionSynchronizationManager.registerSynchronization(
         new TransactionSynchronization() {
@@ -145,6 +153,7 @@ public class ReadCaches {
               bloom().add(template);
               catchUpCatalog();
               redis.opsForValue().increment(EPOCH);
+              if (prewarm) template(template);
             } catch (RuntimeException e) {
               /* TTL and next catalog catch-up recover cache; database remains authoritative. */
             }

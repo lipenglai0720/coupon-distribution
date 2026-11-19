@@ -39,6 +39,8 @@ jobs:
           CREATE DATABASE quanshu_test CHARACTER SET utf8mb4;
           CREATE USER 'coupon_ci'@'localhost' IDENTIFIED BY 'coupon_ci_ephemeral';
           GRANT ALL PRIVILEGES ON quanshu_test.* TO 'coupon_ci'@'localhost';
+          GRANT ALL PRIVILEGES ON quanshu_test_s0.* TO 'coupon_ci'@'localhost';
+          GRANT ALL PRIVILEGES ON quanshu_test_s1.* TO 'coupon_ci'@'localhost';
           SQL
           redis-cli ping
       - name: Verify

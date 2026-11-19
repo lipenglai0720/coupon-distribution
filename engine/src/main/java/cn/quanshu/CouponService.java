@@ -79,7 +79,7 @@ public class CouponService {
         in.discountCents,
         in.validFrom,
         in.validTo);
-    cache.templateChanged(id);
+    cache.templateCreated(id);
     emit("TEMPLATE_EXPIRE", Map.of("templateId", id, "deliveryAt", in.validTo));
     return id;
   }
@@ -423,25 +423,38 @@ public class CouponService {
     if (!db.queryForList("SELECT event_id FROM inbox WHERE event_id=?", eventId).isEmpty()) return;
     db.update("INSERT INTO inbox(event_id,processed_at) VALUES(?,?)", eventId, now());
     if ("BATCH_CLAIM".equals(kind)) {
+      distributeTo(
+          payload.get("taskId").toString(),
+          number(payload, "templateId"),
+          number(payload, "userId"));
+    } else if ("BATCH_CLAIM_GROUP".equals(kind)) {
+      if (!(payload.get("userIds") instanceof List<?> users)
+          || users.isEmpty()
+          || users.size() > FileDistribution.DELIVERY_BATCH_SIZE
+          || users.stream().anyMatch(value -> !(value instanceof Number n) || n.longValue() < 1))
+        throw new BusinessException("无效的批量发券消息");
       String task = payload.get("taskId").toString();
-      long user = number(payload, "userId");
-      try {
-        claim(user, new ClaimInput(number(payload, "templateId"), task + ":" + user));
-        db.update(
-            "UPDATE distribution_recipient SET state='SUCCESS',error=NULL WHERE task_id=? AND"
-                + " user_id=?",
-            task,
-            user);
-      } catch (BusinessException e) {
-        db.update(
-            "UPDATE distribution_recipient SET state='FAILED',error=? WHERE task_id=? AND"
-                + " user_id=?",
-            e.getMessage(),
-            task,
-            user);
-      }
+      long template = number(payload, "templateId");
+      for (var user : users) distributeTo(task, template, ((Number) user).longValue());
     } else if (Set.of("TEMPLATE_EXPIRE", "COUPON_EXPIRE", "LOCK_EXPIRE").contains(kind))
       expireEvent(kind, payload);
     else if (!"COUPON_GRANTED".equals(kind)) throw new BusinessException("未知事件类型");
+  }
+
+  private void distributeTo(String task, long template, long user) {
+    try {
+      claim(user, new ClaimInput(template, task + ":" + user));
+      db.update(
+          "UPDATE distribution_recipient SET state='SUCCESS',error=NULL WHERE task_id=? AND"
+              + " user_id=?",
+          task,
+          user);
+    } catch (BusinessException e) {
+      db.update(
+          "UPDATE distribution_recipient SET state='FAILED',error=? WHERE task_id=? AND user_id=?",
+          e.getMessage(),
+          task,
+          user);
+    }
   }
 }

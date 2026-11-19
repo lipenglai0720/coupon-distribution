@@ -40,7 +40,7 @@ async function main() {
     for (const page of [m, c]) page.on("pageerror", error => errors.push(error.message));
     await signIn(m, merchant);
 
-    const cardName = "周末活动 · 满100减20";
+    const cardName = "周末活动 · 满100减20 · " + Date.now();
     const created = m.waitForResponse(response =>
       response.url().endsWith("/api/templates") && response.request().method() === "POST");
     await m.locator("#createForm [name=name]").fill(cardName);

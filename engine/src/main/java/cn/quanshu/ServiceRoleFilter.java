@@ -17,8 +17,8 @@ public class ServiceRoleFilter extends OncePerRequestFilter {
   public ServiceRoleFilter(
       @Value("${quanshu.role:monolith}") String role,
       @Value("${spring.application.name}") String name) {
-    if (!Set.of("monolith", "merchant", "coupon", "worker").contains(role))
-      throw new IllegalArgumentException("Unknown service role");
+    if (!Set.of("monolith", "merchant", "template", "coupon", "settlement", "worker")
+        .contains(role)) throw new IllegalArgumentException("Unknown service role");
     this.role = role;
     this.name = name;
   }
@@ -30,16 +30,30 @@ public class ServiceRoleFilter extends OncePerRequestFilter {
     response.setHeader("X-Quanshu-Service", name);
     response.setHeader("X-Quanshu-Role", role);
     String path = request.getRequestURI();
-    if (path.startsWith("/api/") && !"monolith".equals(role)) {
-      boolean shared = path.equals("/api/status") || path.equals("/api/cache/stats");
-      boolean merchant = path.startsWith("/api/templates") || path.startsWith("/api/tasks");
-      if (!shared
-          && !("merchant".equals(role) && merchant)
-          && !("coupon".equals(role) && !merchant)) {
-        response.sendError(404);
-        return;
-      }
+    if (path.startsWith("/api/") && !allows(path)) {
+      response.sendError(404);
+      return;
     }
     chain.doFilter(request, response);
+  }
+
+  private boolean allows(String path) {
+    if (path.equals("/api/status")) return true;
+    return switch (role) {
+      case "monolith" -> true;
+      case "merchant" -> under(path, "/api/tasks");
+      case "template" -> under(path, "/api/templates") || path.equals("/api/cache/stats");
+      case "coupon" ->
+          under(path, "/api/claims") || under(path, "/api/auth") || path.equals("/api/wallet");
+      case "settlement" ->
+          path.equals("/api/settlement")
+              || under(path, "/api/coupons")
+              || under(path, "/api/redemptions");
+      default -> false;
+    };
+  }
+
+  private static boolean under(String path, String prefix) {
+    return path.equals(prefix) || path.startsWith(prefix + "/");
   }
 }

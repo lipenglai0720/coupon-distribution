@@ -43,6 +43,10 @@ CREATE DATABASE IF NOT EXISTS quanshu_test CHARACTER SET utf8mb4;
 CREATE USER IF NOT EXISTS 'quanshu'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
 GRANT ALL PRIVILEGES ON quanshu.* TO 'quanshu'@'localhost';
 GRANT ALL PRIVILEGES ON quanshu_test.* TO 'quanshu'@'localhost';
+GRANT ALL PRIVILEGES ON quanshu_s0.* TO 'quanshu'@'localhost';
+GRANT ALL PRIVILEGES ON quanshu_s1.* TO 'quanshu'@'localhost';
+GRANT ALL PRIVILEGES ON quanshu_test_s0.* TO 'quanshu'@'localhost';
+GRANT ALL PRIVILEGES ON quanshu_test_s1.* TO 'quanshu'@'localhost';
 SQL
 if ! redis-cli -h 127.0.0.1 -p 6379 ping >/dev/null 2>&1; then
   redis-server --bind 127.0.0.1 --port 6379 --protected-mode yes --daemonize yes \

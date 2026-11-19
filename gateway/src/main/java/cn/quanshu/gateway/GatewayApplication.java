@@ -17,8 +17,14 @@ public class GatewayApplication {
     return builder
         .routes()
         .route(
-            "merchant",
-            r -> r.path("/api/templates/**", "/api/tasks/**").uri("lb://merchant-service"))
+            "templates",
+            r -> r.path("/api/templates/**", "/api/cache/stats").uri("lb://template-service"))
+        .route("merchant", r -> r.path("/api/tasks/**").uri("lb://merchant-service"))
+        .route(
+            "settlement",
+            r ->
+                r.path("/api/settlement", "/api/coupons/**", "/api/redemptions/**")
+                    .uri("lb://settlement-service"))
         .route("coupon", r -> r.path("/api/**").uri("lb://coupon-service"))
         .route("workspace", r -> r.path("/**").uri("lb://merchant-service"))
         .build();

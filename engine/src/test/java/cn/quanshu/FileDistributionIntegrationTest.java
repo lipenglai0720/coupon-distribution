@@ -2,6 +2,8 @@ package cn.quanshu;
 
 import static org.assertj.core.api.Assertions.*;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.*;
 import java.util.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -15,7 +17,10 @@ import org.springframework.mock.web.MockMultipartFile;
     properties = {
       "spring.datasource.url=${TEST_DB_URL:jdbc:mysql://127.0.0.1:13306/quanshu_test?serverTimezone=UTC}",
       "quanshu.jobs-enabled=false",
-      "quanshu.redis-enabled=false",
+      "quanshu.redis-enabled=true",
+      "spring.data.redis.host=127.0.0.1",
+      "spring.data.redis.port=${TEST_REDIS_PORT:16379}",
+      "spring.data.redis.database=15",
       "quanshu.mq-enabled=false",
       "quanshu.storage-dir=.local/test-uploads"
     })
@@ -23,6 +28,7 @@ class FileDistributionIntegrationTest {
   @Autowired FileDistribution files;
   @Autowired CouponService coupons;
   @Autowired JdbcTemplate db;
+  @Autowired ObjectMapper json;
 
   @BeforeEach
   void reset() throws Exception {
@@ -81,8 +87,9 @@ class FileDistributionIntegrationTest {
       assertThat(db.queryForObject("SELECT COUNT(*) FROM distribution_recipient", Long.class))
           .isEqualTo(700);
       assertThat(
-              db.queryForObject("SELECT COUNT(*) FROM outbox WHERE kind='BATCH_CLAIM'", Long.class))
-          .isEqualTo(700);
+              db.queryForObject(
+                  "SELECT COUNT(*) FROM outbox WHERE kind='BATCH_CLAIM_GROUP'", Long.class))
+          .isEqualTo(8);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -116,8 +123,19 @@ class FileDistributionIntegrationTest {
             db.queryForList(
                 "SELECT user_id FROM distribution_recipient ORDER BY user_id", Long.class))
         .containsExactly(2L, 9007199254740993L);
+    var events = db.queryForList("SELECT id,payload FROM outbox WHERE kind='BATCH_CLAIM_GROUP'");
+    assertThat(events).hasSize(1);
+    var event = events.get(0);
+    var body =
+        json.readValue(
+            event.get("payload").toString(), new TypeReference<Map<String, Object>>() {});
+    assertThat((List<?>) body.get("userIds")).hasSize(2);
+    coupons.consume(event.get("id").toString(), "BATCH_CLAIM_GROUP", body);
+    coupons.consume(event.get("id").toString(), "BATCH_CLAIM_GROUP", body);
+    assertThat(db.queryForObject("SELECT COUNT(*) FROM user_coupon", Long.class)).isEqualTo(2);
     assertThat(
-            db.queryForObject("SELECT COUNT(*) FROM outbox WHERE kind='BATCH_CLAIM'", Long.class))
+            db.queryForObject(
+                "SELECT COUNT(*) FROM distribution_recipient WHERE state='SUCCESS'", Long.class))
         .isEqualTo(2);
   }
 

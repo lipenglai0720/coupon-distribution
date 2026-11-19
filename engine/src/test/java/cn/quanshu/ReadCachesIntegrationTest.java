@@ -58,7 +58,7 @@ class ReadCachesIntegrationTest {
   void templateReadHitsCacheAndEndInvalidatesIt() {
     long id = template(), before = cache.stats().get("templateDatabaseReads");
     for (int i = 0; i < 10; i++) assertThat(cache.template(id).get("status")).isEqualTo("ACTIVE");
-    assertThat(cache.stats().get("templateDatabaseReads") - before).isEqualTo(1);
+    assertThat(cache.stats().get("templateDatabaseReads") - before).isZero();
     coupons.end(id);
     assertThat(cache.template(id).get("status")).isEqualTo("ENDED");
   }

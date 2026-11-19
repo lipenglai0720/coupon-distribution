@@ -21,32 +21,46 @@ stop_owned() {
     previous=$(cat "$runtime/run/$label.pid")
     if [[ -r "/proc/$previous/cmdline" ]] && grep -zFq "$marker" "/proc/$previous/cmdline";then
       kill "$previous"
-      for attempt in {1..30};do kill -0 "$previous" 2>/dev/null || break;sleep 1;done
+      for attempt in {1..30};do
+        if ! kill -0 "$previous" 2>/dev/null || [[ $(ps -o stat= -p "$previous") == Z* ]];then break;fi
+        sleep 1
+      done
       if kill -0 "$previous" 2>/dev/null && [[ $(ps -o stat= -p "$previous") != Z* ]];then echo "Old $label process did not stop" >&2;exit 1;fi
     fi
   fi
 }
 stop_owned app "$runtime/app/quanshu.jar"
-for label in gateway worker coupon merchant;do stop_owned "$label" "$runtime/app/";done
+for label in gateway worker settlement coupon template merchant;do stop_owned "$label" "$runtime/app/";done
 mkdir -p "$runtime/backups"
 export LD_LIBRARY_PATH="$runtime/root/usr/lib/x86_64-linux-gnu"
 umask 077
+mysql=("$runtime/root/usr/bin/mysql" "--defaults-extra-file=$runtime/config/mysql-client.cnf")
+backup_databases=(quanshu)
+while IFS= read -r database; do
+  if [[ "$database" == quanshu_s0 || "$database" == quanshu_s1 ]]; then backup_databases+=("$database"); fi
+done < <("${mysql[@]}" -Nse "SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('quanshu_s0','quanshu_s1') ORDER BY schema_name")
 "$runtime/root/usr/bin/mysqldump" --defaults-extra-file="$runtime/config/mysql-client.cnf" \
-  --single-transaction --no-tablespaces quanshu > "$runtime/backups/quanshu-$(date +%Y%m%d-%H%M%S).sql"
+  --single-transaction --no-tablespaces --databases "${backup_databases[@]}" > "$runtime/backups/quanshu-$(date +%Y%m%d-%H%M%S).sql"
+for database in quanshu_s0 quanshu_s1;do
+  "${mysql[@]}" -e "GRANT ALL PRIVILEGES ON $database.* TO 'quanshu'@'localhost'"
+done
 for label in engine gateway;do
   if [[ -f "$runtime/app/quanshu-$label.next.jar" ]];then mv "$runtime/app/quanshu-$label.next.jar" "$runtime/app/quanshu-$label.jar";fi
 done
 cd "$runtime/app"
-for role in merchant coupon worker;do
+for role in merchant template coupon settlement worker;do
+  heap=256m
   case "$role" in
     merchant) port=8083;name=merchant-service;jobs=false;xxl=false;;
+    template) port=8085;name=template-service;jobs=false;xxl=false;heap=160m;;
     coupon) port=8082;name=coupon-service;jobs=false;xxl=false;;
+    settlement) port=8086;name=settlement-service;jobs=false;xxl=false;heap=160m;;
     worker) port=8084;name=distribution-service;jobs=true;xxl=true;;
   esac
   role_accounts=""
   if [[ "$role" == merchant ]]; then role_accounts="$accounts_file"; fi
   SERVICE_NAME="$name" SERVICE_ROLE="$role" JOBS_ENABLED="$jobs" APP_PORT="$port" ACCOUNTS_FILE="$role_accounts" \
-    nohup "$java" -Xms64m -Xmx256m -XX:ActiveProcessorCount=2 -Dfile.encoding=UTF-8 \
+    nohup "$java" -Xms64m "-Xmx$heap" -XX:ActiveProcessorCount=2 -Dfile.encoding=UTF-8 \
       -jar "$runtime/app/quanshu-engine.jar" --spring.profiles.active=sharded --server.address=127.0.0.1 \
       --quanshu.xxl-enabled="$xxl" --quanshu.storage-dir="$runtime/app/data/uploads" \
       > "$runtime/logs/$role.log" 2>&1 < /dev/null &

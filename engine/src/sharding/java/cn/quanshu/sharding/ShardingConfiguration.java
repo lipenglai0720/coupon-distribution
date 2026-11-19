@@ -69,8 +69,9 @@ public class ShardingConfiguration {
             } finally {
               c.setAutoCommit(true);
             }
-          } else if (!"USER_TEMPLATE_HASH_4".equals(mode))
+          } else if (!"USER_TEMPLATE_HASH_4".equals(mode) && !PhysicalShardLayout.MODE.equals(mode))
             throw new IllegalStateException("Unknown storage mode " + mode);
+          PhysicalShardLayout.prepare(c, mode);
         } finally {
           s.execute("SELECT RELEASE_LOCK('quanshu-shard-bootstrap')");
         }

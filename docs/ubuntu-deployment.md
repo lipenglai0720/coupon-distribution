@@ -14,7 +14,9 @@
 | Nacos控制台 | 已启用控制台鉴权 | 18848 | 18848 |
 | Gateway | 统一入口 | 8080 | 8080 |
 | 商家服务 | merchant-service | 8083 | 经网关 |
+| 模板服务 | template-service | 8085 | 经网关 |
 | 用户券服务 | coupon-service | 8082 | 经网关 |
+| 结算服务 | settlement-service | 8086 | 经网关 |
 | 分发服务 | distribution-service | 8084 | 健康端点，业务API关闭 |
 | XXL-Job管理 | 3.1.1 | 18080 | 18080 |
 | XXL-Job执行器 | quanshu-worker | 9999 | VM内部调度 |
@@ -35,11 +37,11 @@ VM脚本执行顺序：start-user-services.sh → start-nacos.sh → start-xxl-a
 
 ## 分片与数据
 
-模板按merchant_id（业务中的商家编号）Hash至coupon_template_0～3，用户券按user_id Hash至user_coupon_0～3，算法为Long.hashCode后floorMod4。模板ID来自单独的id_allocator；请求和订单有独立的全局约束表。
+模板按商家编号 Hash 至 `coupon_template_0`～`coupon_template_3`，物理分片键为 `shop_number`，API 继续使用 `merchantId`。用户券按 `user_id` Hash 至 `user_coupon_0`～`user_coupon_3`。算法为 `floorMod(Long.hashCode(id), 4)`。编号 0、1 的物理表位于 `quanshu_s0`，编号 2、3 位于 `quanshu_s1`。模板 ID 单独分配，请求和订单使用主库全局约束表。
 
-这是同库分表。所有业务写入仍使用同一物理MySQL数据源，以保留模板库存、用户券、Outbox的本地原子事务。没有跨库XA能力。两张表的关联查询需要散播；带分片键查询优先。旧单表是迁移时快照，切换后不能当作实时数据源。
+主库通过可更新视图访问两个分片库的物理表，所有业务写入使用同一 MySQL 实例的本地事务。应用账号需要主库与两个分片库的权限。两个分片表的关联查询可能遍历多个节点，业务查询优先带分片键。
 
-迁移必须先停止所有业务写入。start-platform先备份到VM backups，再用MySQL命名锁串行化一次性拷贝，并在同一事务设置storage_mode。普通单表模式检测到切换标记会拒绝启动。恢复旧备份意味着丢弃备份之后的数据，应另行设计恢复步骤，不能只改标记。
+迁移必须先停止业务写入。`start-platform.sh` 将主库和已有分片库备份到 VM 的 `backups`，然后在 MySQL 命名锁下准备存储。旧单表数据先迁至四个桶，再用原子改名移至两个分片库，创建可更新视图后写入 `TWO_SCHEMA_HASH_4`。初始化可重试。旧单表保留迁移时快照，存储标记切换后应通过分片模式访问业务数据。
 
 ## 测试与调度
 
@@ -49,9 +51,9 @@ VM脚本执行顺序：start-user-services.sh → start-nacos.sh → start-xxl-a
 
 Windows 启动脚本支持 `-VmHost`、`-VmUser` 和 `-IdentityFile`，也可分别配置 `COUPON_VM_HOST`、`COUPON_VM_USER` 和 `COUPON_VM_IDENTITY`。原生 VM 验收脚本通过 `COUPON_VM_SSH_TARGET` 指定 SSH 目标。
 
-Maven verify默认运行分片模式；本机私有连接已配置。测试库固定quanshu_test，Redis数据库15；测试会删除这些测试记录。开发库quanshu与Redis数据库0不做测试清理。
+Maven verify 默认运行分片模式。测试使用 `quanshu_test`、`quanshu_test_s0`、`quanshu_test_s1` 和 Redis 数据库 15。开发实例使用 `quanshu` 系列库和 Redis 数据库 0。
 
-需要全新测试模式时，reset-test-database.sh只重建硬编码的quanshu_test，不接受数据库参数。测试期间不要并行运行另一套清理相同测试库的任务。
+需要全新测试模式时，`reset-test-database.sh` 仅重建三个固定名称的测试库。测试期间同一组测试库应由一套验证任务独占。
 
 XXL调度：couponExpiry每10秒、claimRepair每5秒、fileImport每2秒。Outbox发送泵由worker每200ms运行；业务API角色不运行调度或消息消费者。消费成功后Outbox标记CONSUMED；已发送但超过应到时间60秒仍未确认的记录会补投，最多10轮后FAILED供排查。
 

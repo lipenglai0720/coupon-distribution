@@ -1,17 +1,14 @@
 package cn.quanshu;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.context.AnalysisContext;
+import com.alibaba.excel.exception.ExcelAnalysisException;
+import com.alibaba.excel.read.listener.ReadListener;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.function.Consumer;
-import org.apache.poi.openxml4j.opc.*;
-import org.apache.poi.ss.usermodel.DataFormatter;
-import org.apache.poi.util.XMLHelper;
-import org.apache.poi.xssf.eventusermodel.*;
-import org.apache.poi.xssf.model.*;
-import org.apache.poi.xssf.usermodel.XSSFComment;
-import org.xml.sax.InputSource;
 
 /**
  * Reads the first column of the first sheet; reports source row numbers for durable checkpoints.
@@ -46,45 +43,27 @@ public final class RecipientFileReader {
         }
       }
     } else {
-      try (var pkg = OPCPackage.open(path.toFile(), PackageAccess.READ)) {
-        var reader = new XSSFReader(pkg);
-        var shared = new ReadOnlySharedStringsTable(pkg);
-        var sheets = reader.getSheetsData();
-        if (!sheets.hasNext()) throw new BusinessException("工作簿没有工作表");
-        var handler =
-            new XSSFSheetXMLHandler(
-                reader.getStylesTable(),
-                null,
-                shared,
-                new XSSFSheetXMLHandler.SheetContentsHandler() {
-                  private String first;
+      var listener =
+          new ReadListener<Map<Integer, String>>() {
+            @Override
+            public void invoke(Map<Integer, String> cells, AnalysisContext context) {
+              long row = context.readRowHolder().getRowIndex() + 1L;
+              if (row > 1_000_001) throw new BusinessException("文件最多一百万条用户记录");
+              if (row > checkpoint) consumer.accept(parse(row, cells.get(0)));
+            }
 
-                  @Override
-                  public void startRow(int row) {
-                    first = null;
-                  }
-
-                  @Override
-                  public void endRow(int row) {
-                    if (row > 1000000) throw new BusinessException("文件最多一百万条用户记录");
-                    if (row + 1L > checkpoint) consumer.accept(parse(row + 1L, first));
-                  }
-
-                  @Override
-                  public void cell(String reference, String value, XSSFComment comment) {
-                    if (reference != null && reference.matches("A[0-9]+")) first = value;
-                  }
-
-                  @Override
-                  public void headerFooter(String text, boolean header, String tagName) {}
-                },
-                new DataFormatter(Locale.ROOT),
-                false);
-        var parser = XMLHelper.newXMLReader();
-        parser.setContentHandler(handler);
-        try (var sheet = sheets.next()) {
-          parser.parse(new InputSource(sheet));
-        }
+            @Override
+            public void doAfterAllAnalysed(AnalysisContext context) {}
+          };
+      try {
+        EasyExcel.read(path.toFile(), listener)
+            .headRowNumber(0)
+            .ignoreEmptyRow(false)
+            .sheet(0)
+            .doRead();
+      } catch (ExcelAnalysisException e) {
+        if (e.getCause() instanceof RuntimeException cause) throw cause;
+        throw e;
       }
     }
   }
